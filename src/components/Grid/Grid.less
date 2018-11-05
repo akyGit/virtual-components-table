@@ -1,0 +1,71 @@
+.Grid {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+
+    &__container {
+        display: grid;
+        grid-template-rows: 20px 20px auto;
+        grid-template-areas: 'corner corner colButtons'
+            'corner corner columnIndexes'
+            'rowButtons rowIndexes table';
+        grid-template-columns: 30px 60px calc(100% - 90px);
+    }
+
+    &__saveButton {
+        grid-area: corner;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    &__table {
+        grid-area: table;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    
+        &__row {
+            display: flex;
+    
+            &__cell {
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                width: 80px;
+                height: 30px;
+    
+                &__checkbox {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    width: 30px;
+                    height: 30px;
+
+                    &__enabled {
+                        margin: 0;
+                    }
+                }
+    
+                &__number {
+                    display: inline-block;
+                    box-sizing: border-box;
+                    outline: 0;
+                    width: 50px;
+                    height: 20px;
+                    border: 1px solid hsla(0, 0, 0, 0.3);
+                    box-shadow: inset 0 1px 2px hsla(0, 0, 0, 0.2);
+                    border-radius: 3px;
+
+                    &::-webkit-inner-spin-button, &::-webkit-outer-spin-button {
+                        -webkit-appearance: none;
+                        margin: 0;
+                    }
+                }
+            }
+        }
+    }
+}
