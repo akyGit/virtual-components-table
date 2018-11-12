@@ -92,7 +92,7 @@ export default {
       changed: 0,
       windowWidth: 0,
       windowHeight: 0,
-      shouldRecalculate: true,
+      passRecalculate: false,
     };
   },
 
@@ -268,20 +268,27 @@ export default {
       if (parsedRow > maxRowBound) { parsedRow = maxSize - realSize; rowChanged = true; }
       if (parsedCol > maxColBound) { parsedCol = maxSize - realSize; colChanged = true; }
 
-      const ndy = Math.round(realSize - this.visibleRow);
-      const ndx = Math.round(realSize - this.visibleCol);
+      const newRowOffset = Math.round(realSize - this.visibleRow);
+      const newColOffset = Math.round(realSize - this.visibleCol);
 
-      this.shouldRecalculate = false;
+      this.passRecalculate = true;
 
-      this.gridData = await this.grid.getGridPartWithDelay(parsedRow, parsedCol, realSize, 500);
-      this.row = parsedRow;
-      this.col = parsedCol;
+      let newRow = parsedRow < gap ? 0 : parsedRow - gap;
+      let newCol = parsedCol < gap ? 0 : parsedCol - gap;
 
-      if (rowChanged) this.rowOffset = ndy;
-      else this.rowOffset = 0;
+      if (rowChanged) newRow = parsedRow;
+      if (colChanged) newCol = parsedCol;
 
-      if (colChanged) this.colOffset = ndx;
-      else this.colOffset = 0;
+      this.gridData = await this.grid.getGridPartWithDelay(newRow, newCol, realSize, 500);
+
+      this.row = newRow;
+      this.col = newCol;
+
+      if (rowChanged) this.rowOffset = newRowOffset;
+      else this.rowOffset = parsedRow < gap ? parsedRow : gap;
+
+      if (colChanged) this.colOffset = newColOffset;
+      else this.colOffset = parsedCol < gap ? parsedCol : gap;
     },
   },
 
@@ -293,12 +300,13 @@ export default {
       const isMinBound = (newValue + this.col) - (ndx) < 0;
       const isMaxBound = (newValue + this.col) - (ndx) > maxBound;
 
-      const shouldBeCorrected = !this.colBound && this.shouldRecalculate && (
+      const shouldBeCorrected = !this.colBound && !this.passRecalculate && (
         (newValue + this.visibleCol) > (realSize - gap) // right gap
         || ((newValue < oldValue) && (newValue < gap)) // left gap
       );
 
       if (this.colBound && !isMinBound && !isMaxBound) this.colBound = false;
+      if (this.passRecalculate) this.passRecalculate = false;
 
       if (shouldBeCorrected) {
         this.colBound = isMinBound || isMaxBound;
@@ -309,7 +317,7 @@ export default {
             : (newValue + this.col) - (ndx)
         );
 
-        const data = await this.grid.getGridPartWithDelay(this.y, col, realSize, 500);
+        const data = await this.grid.getGridPartWithDelay(this.row, col, realSize, 500);
 
         if (data) {
           this.colOffset = isMinBound
@@ -331,15 +339,17 @@ export default {
       const isMinBound = (newValue + this.row) - (ndy) < 0;
       const isMaxBound = (newValue + this.row) - (ndy) > maxBound;
 
-      const shouldBeCorrected = !this.rowBound && this.shouldRecalculate && (
+      const shouldBeCorrected = !this.rowBound && !this.passRecalculate && (
         (newValue + this.visibleRow) > (realSize - gap) // right gap
         || ((newValue < oldValue) && (newValue < gap)) // left gap
       );
 
       if (this.rowBound && !isMinBound && !isMaxBound) this.rowBound = false;
+      if (this.passRecalculate) this.passRecalculate = false;
 
       if (shouldBeCorrected) {
         this.rowBound = isMinBound || isMaxBound;
+        this.shouldRecalculate = true;
 
         const row = isMinBound ? 0 : (
           isMaxBound
@@ -347,7 +357,7 @@ export default {
             : (newValue + this.row) - (ndy)
         );
 
-        const data = await this.grid.getGridPartWithDelay(row, this.x, realSize, 500);
+        const data = await this.grid.getGridPartWithDelay(row, this.col, realSize, 500);
 
         if (data) {
           this.rowOffset = isMinBound
