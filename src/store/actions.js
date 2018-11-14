@@ -27,6 +27,10 @@ const actions = {
 
     return false;
   },
+
+  changeCell(context, { row, col, data }) {
+    grid.changeCell(row, col, data);
+  },
 };
 
 export default actions;

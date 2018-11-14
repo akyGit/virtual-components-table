@@ -334,7 +334,7 @@ export default {
         const row = parseInt(key.split('|')[0], 10);
         const col = parseInt(key.split('|')[1], 10);
 
-        this.grid.changeCell(row, col, this.tempData[key]);
+        this.changeCell({ row, col, data: this.tempData[key] });
         console.log(`row/col(${row}/${col}) - ${JSON.stringify(this.tempData[key])}`);
       });
 
@@ -404,6 +404,7 @@ export default {
 
     ...mapActions([
       'loadNewPartGridData',
+      'changeCell',
     ])
   },
 
