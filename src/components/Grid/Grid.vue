@@ -154,13 +154,16 @@ export default {
     visibleRow() {
       // columns controllers (20) and columns ruler height (20) - 40
       // height of grid cell                                    - 30
-      return Math.floor((this.windowHeight - 40) / 30);
+      // for good visibility                                    - 50
+
+      return Math.floor((this.windowHeight - 40 - 50) / 30);
     },
 
     visibleCol() {
       // rows controllers (30) and rows ruler width (60) - 90
       // width of grid cell                              - 80
-      return Math.floor((this.windowWidth - 90) / 80);
+      // for good visibility                             - 50
+      return Math.floor((this.windowWidth - 90 - 50) / 80);
     },
 
     visibleGridData() {
