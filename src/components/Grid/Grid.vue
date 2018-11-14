@@ -40,6 +40,7 @@
           :onScrollDelay='onScrollColDelay'
           :onScrollStart='onScrollStart'
           :onScrollContinue='onScrollContinue'
+          :onClick='onScrollColDelay'
         />
       </div>
 
@@ -51,6 +52,7 @@
           :onScroll='onScrollRow'
           :onScrollDelay='onScrollRowDelay'
           :onScrollStart='onScrollStart'
+          :onClick='onScrollRowDelay'
           vertical
         />
       </div>

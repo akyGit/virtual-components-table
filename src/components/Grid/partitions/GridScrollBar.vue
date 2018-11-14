@@ -41,11 +41,14 @@ export default {
     onScrollEnd: Function,
     onScrollDelay: Function,
     onScrollContinue: Function,
+    onClick: Function,
   },
 
   data() {
     return {
       dragging: false,
+      moveFired: false,
+      startDragTime: 0,
     };
   },
 
@@ -59,14 +62,23 @@ export default {
   },
 
   methods: {
-    startDrag() {
+    startDrag(e) {
+      this.startDragTime = Date.now();
       this.dragging = true;
+
+      const { interpolated } = this.getNewState(e);
+
+      this.interpolated = interpolated;
+
       if (this.onScrollStart) this.onScrollStart();
     },
 
-    stopDrag() {
+    stopDrag(e) {
       this.dragging = false;
       if (this.onScrollEnd) this.onScrollEnd(this.interpolated);
+      if (this.startDragTime && !this.moveFired && this.onClick) this.onClick(this.interpolated);
+      this.moveFired = false;
+      this.startDragTime = 0;
     },
 
     mouseDown(e) {
@@ -75,29 +87,13 @@ export default {
 
     move: throttle(function(e) {
       if (this.dragging) {
+        this.moveFired = true;
+
         if (this.timeoutId === -1 && this.onScrollContinue) {
           this.onScrollContinue();
         }
 
-        let newValue = this.vertical
-          ? e.clientY - this.$el.offsetTop - this.$refs.thumb.clientHeight / 2
-          : e.clientX - this.$el.offsetLeft - this.$refs.thumb.clientWidth / 2;
-
-        let interpolated = this.vertical
-          ? (newValue / this.$el.clientHeight) * this.maxValue
-          : (newValue / this.$el.clientWidth) * this.maxValue;
-
-        if (newValue < 0) { newValue = 0; interpolated = 0; }
-        if (newValue > (this.vertical
-          ? this.$el.clientHeight - this.$refs.thumb.clientHeight
-          : this.$el.clientWidth - this.$refs.thumb.clientWidth)
-        ) {
-          newValue = this.vertical
-            ? this.$el.clientHeight - this.$refs.thumb.clientHeight
-            : this.$el.clientWidth - this.$refs.thumb.clientWidth;
-
-          interpolated = this.maxValue;
-        }
+        const { newPosition, interpolated } = this.getNewState(e);
 
         this.interpolated = interpolated;
 
@@ -107,14 +103,38 @@ export default {
           this.timeoutId = -1;
         }, this.delay);
 
-        if (newValue + 'px' !== (this.vertical ? this.$refs.thumb.style.top : this.$refs.thumb.style.left)) {
-          if (this.vertical) this.$refs.thumb.style.top = newValue + 'px';
-          else this.$refs.thumb.style.left = newValue + 'px';
+        if (newPosition + 'px' !== (this.vertical ? this.$refs.thumb.style.top : this.$refs.thumb.style.left)) {
+          if (this.vertical) this.$refs.thumb.style.top = newPosition + 'px';
+          else this.$refs.thumb.style.left = newPosition + 'px';
 
           if (this.onScroll) this.onScroll(interpolated);
         }
       }
     }, 30),
+
+    getNewState(e) {
+      let newPosition = this.vertical
+        ? e.clientY - this.$el.offsetTop - this.$refs.thumb.clientHeight / 2
+        : e.clientX - this.$el.offsetLeft - this.$refs.thumb.clientWidth / 2;
+
+      let interpolated = this.vertical
+        ? (newPosition / this.$el.clientHeight) * this.maxValue
+        : (newPosition / this.$el.clientWidth) * this.maxValue;
+
+      if (newPosition < 0) { newPosition = 0; interpolated = 0; }
+      if (newPosition > (this.vertical
+        ? this.$el.clientHeight - this.$refs.thumb.clientHeight
+        : this.$el.clientWidth - this.$refs.thumb.clientWidth)
+      ) {
+        newPosition = this.vertical
+          ? this.$el.clientHeight - this.$refs.thumb.clientHeight
+          : this.$el.clientWidth - this.$refs.thumb.clientWidth;
+
+        interpolated = this.maxValue;
+      }
+
+      return { newPosition, interpolated };
+    }
   },
 
   watch: {
