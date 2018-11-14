@@ -6,9 +6,9 @@
     </div>
     <div class='GridColControllers__goTo'>
       <span>Row: </span>
-      <input type='number' v-model='row' />
+      <input type='number' v-model='row' @keypress='onlyNumber' />
       <span>Col: </span>
-      <input type='number' v-model='col' />
+      <input type='number' v-model='col' @keypress='onlyNumber' />
       <button @click='handleGoTo'>Go</button>
     </div>
     <div class='GridColControllers__right'>
@@ -39,6 +39,12 @@ export default {
   methods: {
     handleGoTo() {
       this.onGoTo(this.row, this.col);
+    },
+
+    onlyNumber(e) {
+      if ((e.keyCode < 48 || e.keyCode > 57)) {
+        e.preventDefault();
+      }
     },
   },
 };

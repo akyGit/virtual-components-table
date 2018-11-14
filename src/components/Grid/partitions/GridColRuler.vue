@@ -2,10 +2,10 @@
   <div class='GridColRuler'>
     <div
       class='GridColRuler__cell'
-      v-for='(cell, i) in colCells'
+      v-for='(cell, i) in cells'
       :key='i'
     >
-      {{ cell.id.split('|')[1] }}
+      {{ cell }}
     </div>
   </div>
 </template>
@@ -14,8 +14,24 @@
 export default {
   name: 'GridColRuler',
   props: {
-    colCells: Array,
+    colCells: {
+      type: Array,
+      default() {
+        return [];
+      },
+    },
+    simplified: {
+      type: Boolean,
+      default: false
+    }
   },
+  computed: {
+    cells() {
+      return this.simplified
+        ? this.colCells
+        : this.colCells.map(cell => cell.id.split('|')[1]);
+    }
+  }
 };
 </script>
 
