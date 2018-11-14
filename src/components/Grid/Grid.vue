@@ -92,6 +92,7 @@
 
 <script>
 import throttle from 'lodash/throttle';
+import { mapState, mapMutations } from 'vuex';
 import GridRowControllers from './partitions/GridRowControllers';
 import GridColControllers from './partitions/GridColControllers';
 import GridRowRuler from './partitions/GridRowRuler';
@@ -99,6 +100,7 @@ import GridColRuler from './partitions/GridColRuler';
 import GridScrollBar from './partitions/GridScrollBar';
 import GridData from '../../utils/GridData';
 import config from '../../etc/config.json';
+import * as Mutations from '../../store/mutations';
 
 const gap = config.GAP;
 const realSize = config.REAL_SIZE;
@@ -117,12 +119,6 @@ export default {
 
   data() {
     return {
-      row: 0,
-      col: 0,
-      rowOffset: 0,
-      colOffset: 0,
-      gridData: [],
-      tempData: {},
       changed: 0,
       windowWidth: 0,
       windowHeight: 0,
@@ -193,6 +189,15 @@ export default {
 
       return data;
     },
+
+    ...mapState([
+      'row',
+      'col',
+      'rowOffset',
+      'colOffset',
+      'gridData',
+      'tempData',
+    ]),
   },
 
   methods: {
@@ -200,74 +205,94 @@ export default {
     init() {
       const grid = new GridData();
 
-      const data = grid.getGridPart(0, 0, realSize);
-      this.gridData = data;
+      const gridData = grid.getGridPart(0, 0, realSize);
+      this.changeGridData({ gridData });
       this.grid = grid;
     },
 
     /* controls */
     goToColumnPrev() {
       if (((this.colOffset + this.col) - 1) >= 0) {
-        this.colOffset -= 1;
+        this.changeColOffset({ colOffset: this.colOffset - 1 });
         this.scrollCol = this.colOffset + this.col;
       }
     },
 
     goToColumnNext() {
       if ((this.colOffset + this.col) < (maxSize - this.visibleCol)) {
-        this.colOffset += 1;
+        this.changeColOffset({ colOffset: this.colOffset + 1 });
         this.scrollCol = this.colOffset + this.col;
       }
     },
 
-    goToColumnMin() {
-      this.gridData = this.grid.getGridPart(this.row, 0, realSize);
-      this.colOffset = 0;
-      this.col = 0;
+    async goToColumnMin() {
       this.colBound = true;
       this.scrollCol = 0;
+      this.scrolling = true;
+
+      const gridData = await this.grid.getGridPartWithDelay(this.row, 0, realSize, 500);
+
+      this.scrolling = false;
+      this.changeGridData({ gridData });
+      this.changeColOffset({ colOffset: 0 });
+      this.changeCol({ col: 0 });
     },
 
-    goToColumnMax() {
+    async goToColumnMax() {
       const nx = maxSize - realSize;
 
-      this.gridData = this.grid.getGridPart(this.row, nx, realSize);
-      this.colOffset = realSize - this.visibleCol;
-      this.col = nx;
       this.colBound = true;
       this.scrollCol = maxSize;
+      this.scrolling = true;
+
+      const gridData = await this.grid.getGridPartWithDelay(this.row, nx, realSize, 500);
+
+      this.scrolling = false;
+      this.changeGridData({ gridData });
+      this.changeColOffset({ colOffset: realSize - this.visibleCol });
+      this.changeCol({ col: nx });
     },
 
     goToRowPrev() {
       if (((this.rowOffset + this.row) - 1) >= 0) {
-        this.rowOffset -= 1;
+        this.changeRowOffset({ rowOffset: this.rowOffset - 1 });
         this.scrollRow = this.rowOffset + this.row;
       }
     },
 
     goToRowNext() {
       if (((this.rowOffset + this.row) + 1) < (maxSize - this.visibleRow)) {
-        this.rowOffset += 1;
+        this.changeRowOffset({ rowOffset: this.rowOffset + 1 });
         this.scrollRow = this.rowOffset + this.row;
       }
     },
 
-    goToRowMin() {
-      this.gridData = this.grid.getGridPart(0, this.col, realSize);
-      this.rowOffset = 0;
-      this.row = 0;
+    async goToRowMin() {
       this.rowBound = true;
       this.scrollRow = 0;
+      this.scrolling = true;
+
+      const gridData = await this.grid.getGridPartWithDelay(0, this.col, realSize, 500);
+
+      this.scrolling = false;
+      this.changeGridData({ gridData });
+      this.changeRowOffset({ rowOffset: 0 });
+      this.changeRow({ row: 0});
     },
 
-    goToRowMax() {
+    async goToRowMax() {
       const ny = maxSize - realSize;
 
-      this.gridData = this.grid.getGridPart(ny, this.col, realSize);
-      this.rowOffset = realSize - this.visibleRow;
-      this.row = ny;
       this.rowBound = true;
       this.scrollRow = maxSize;
+      this.scrolling = true;
+
+      const gridData = await this.grid.getGridPartWithDelay(ny, this.col, realSize, 500);
+
+      this.scrolling = false;
+      this.changeGridData({ gridData });
+      this.changeRowOffset({ rowOffset: realSize - this.visibleRow });
+      this.changeRow({ row: ny });
     },
 
     /* grid data change handlers */
@@ -275,16 +300,12 @@ export default {
       let value = parseInt(number, 10);
 
       this.changed += 1;
-
-      if (this.tempData[id]) this.tempData[id].number = value;
-      else this.tempData[id] = { number: value };
+      this.changeNumberTempData({ id, number: value });
     },
 
     changeEnabled(id, enabled) {
       this.changed += 1;
-
-      if (this.tempData[id]) this.tempData[id].enabled = enabled;
-      else this.tempData[id] = { enabled };
+      this.changeEnabledTempData({ id, enabled });
     },
 
     onlyNumber(e) {
@@ -336,7 +357,7 @@ export default {
     }, 300),
 
     /* save data handler */
-    handleSave() {
+    async handleSave() {
       // print changes
       console.log('Changes:');
       Object.keys(this.tempData).forEach((key) => {
@@ -348,10 +369,12 @@ export default {
       });
 
       // update info from data driver
-      const data = this.grid.getGridPart(this.row, this.col, realSize);
+      this.scrolling = true;
+      const gridData = await this.grid.getGridPartWithDelay(this.row, this.col, realSize, 500);
 
-      this.gridData = data;
-      this.tempData = {};
+      this.scrolling = false;
+      this.changeGridData({ gridData });
+      this.clearTempData();
       this.changed = 0;
     },
 
@@ -384,21 +407,33 @@ export default {
       if (rowChanged) newRow = parsedRow;
       if (colChanged) newCol = parsedCol;
 
-      this.gridData = await this.grid.getGridPartWithDelay(newRow, newCol, realSize, 500);
+      const gridData = await this.grid.getGridPartWithDelay(newRow, newCol, realSize, 500);
+      this.changeGridData({ gridData });
       this.scrolling = false;
 
-      this.row = newRow;
-      this.col = newCol;
+      this.changeRow({ row: newRow });
+      this.changeCol({ col: newCol });
 
-      if (rowChanged) this.rowOffset = newRowOffset;
-      else this.rowOffset = parsedRow < gap ? parsedRow : gap;
+      if (rowChanged) this.changeRowOffset({ rowOffset: newRowOffset });
+      else this.changeRowOffset({ rowOffset: parsedRow < gap ? parsedRow : gap });
 
-      if (colChanged) this.colOffset = newColOffset;
-      else this.colOffset = parsedCol < gap ? parsedCol : gap;
+      if (colChanged) this.changeColOffset({ colOffset: newColOffset });
+      else this.changeColOffset({ colOffset: parsedCol < gap ? parsedCol : gap });
 
       this.scrollRow = this.row + this.rowOffset;
       this.scrollCol = this.col + this.colOffset;
     },
+
+    ...mapMutations({
+      changeRow:             Mutations.CHANGE_ROW,
+      changeCol:             Mutations.CHANGE_COL,
+      changeRowOffset:       Mutations.CHANGE_ROW_OFFSET,
+      changeColOffset:       Mutations.CHANGE_COL_OFFSET,
+      changeGridData:        Mutations.CHANGE_GRID_DATA,
+      clearTempData:         Mutations.CLEAR_TEMP_DATA,
+      changeNumberTempData:  Mutations.CHANGE_NUMBER_TEMP_DATA,
+      changeEnabledTempData: Mutations.CHANGE_ENABLED_TEMP_DATA,
+    }),
   },
 
   watch: {
@@ -426,17 +461,19 @@ export default {
             : (newValue + this.col) - (ndx)
         );
 
-        const data = await this.grid.getGridPartWithDelay(this.row, col, realSize, 500);
+        const gridData = await this.grid.getGridPartWithDelay(this.row, col, realSize, 500);
 
-        if (data) {
-          this.colOffset = isMinBound
+        if (gridData) {
+          const colOffset = isMinBound
             ? (newValue + this.col) : (
               isMaxBound
                 ? newValue + this.col - col
                 : ndx
             );
-          this.col = col;
-          this.gridData = data;
+
+          this.changeColOffset({ colOffset });
+          this.changeCol({ col });
+          this.changeGridData({ gridData });
         }
       }
     }, 500),
@@ -466,17 +503,19 @@ export default {
             : (newValue + this.row) - (ndy)
         );
 
-        const data = await this.grid.getGridPartWithDelay(row, this.col, realSize, 500);
+        const gridData = await this.grid.getGridPartWithDelay(row, this.col, realSize, 500);
 
-        if (data) {
-          this.rowOffset = isMinBound
+        if (gridData) {
+          const rowOffset = isMinBound
             ? (newValue + this.row) : (
               isMaxBound
                 ? newValue + this.row - row
                 : ndy
             );
-          this.row = row;
-          this.gridData = data;
+
+          this.changeRowOffset({ rowOffset });
+          this.changeRow({ row });
+          this.changeGridData({ gridData });
         }
       }
     }, 500),
