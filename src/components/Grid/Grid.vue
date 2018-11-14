@@ -33,24 +33,24 @@
 
       <div class='Grid__colScrollBar'>
         <GridScrollBar
+          :value='scrollCol'
+          :maxValue='40000'
+          :delay='300'
           :onScroll='onScrollCol'
           :onScrollDelay='onScrollColDelay'
           :onScrollStart='onScrollStart'
           :onScrollContinue='onScrollContinue'
-          :delay='300'
-          :value='scrollCol'
-          :maxValue='40000'
         />
       </div>
 
       <div class='Grid__rowScrollBar'>
         <GridScrollBar
+          :value='scrollRow'
+          :maxValue='40000'
+          :delay='300'
           :onScroll='onScrollRow'
           :onScrollDelay='onScrollRowDelay'
           :onScrollStart='onScrollStart'
-          :delay='300'
-          :value='scrollRow'
-          :maxValue='40000'
           vertical
         />
       </div>
@@ -92,7 +92,7 @@
 
 <script>
 import throttle from 'lodash/throttle';
-import { mapState, mapMutations } from 'vuex';
+import { mapState, mapMutations, mapActions } from 'vuex';
 import GridRowControllers from './partitions/GridRowControllers';
 import GridColControllers from './partitions/GridColControllers';
 import GridRowRuler from './partitions/GridRowRuler';
@@ -130,8 +130,6 @@ export default {
   },
 
   mounted() {
-    this.init();
-
     this.handleResize();
     window.addEventListener('resize', this.handleResize);
   },
@@ -201,15 +199,6 @@ export default {
   },
 
   methods: {
-    // init first part of data
-    init() {
-      const grid = new GridData();
-
-      const gridData = grid.getGridPart(0, 0, realSize);
-      this.changeGridData({ gridData });
-      this.grid = grid;
-    },
-
     /* controls */
     goToColumnPrev() {
       if (((this.colOffset + this.col) - 1) >= 0) {
@@ -228,14 +217,10 @@ export default {
     async goToColumnMin() {
       this.colBound = true;
       this.scrollCol = 0;
-      this.scrolling = true;
-
-      const gridData = await this.grid.getGridPartWithDelay(this.row, 0, realSize, 500);
-
-      this.scrolling = false;
-      this.changeGridData({ gridData });
+      await this.loadNewPartGridData({ row: this.row, col: 0 });
       this.changeColOffset({ colOffset: 0 });
       this.changeCol({ col: 0 });
+
     },
 
     async goToColumnMax() {
@@ -243,12 +228,7 @@ export default {
 
       this.colBound = true;
       this.scrollCol = maxSize;
-      this.scrolling = true;
-
-      const gridData = await this.grid.getGridPartWithDelay(this.row, nx, realSize, 500);
-
-      this.scrolling = false;
-      this.changeGridData({ gridData });
+      await this.loadNewPartGridData({ row: this.row, col: nx });
       this.changeColOffset({ colOffset: realSize - this.visibleCol });
       this.changeCol({ col: nx });
     },
@@ -270,12 +250,7 @@ export default {
     async goToRowMin() {
       this.rowBound = true;
       this.scrollRow = 0;
-      this.scrolling = true;
-
-      const gridData = await this.grid.getGridPartWithDelay(0, this.col, realSize, 500);
-
-      this.scrolling = false;
-      this.changeGridData({ gridData });
+      await this.loadNewPartGridData({ row: 0, col: this.col });
       this.changeRowOffset({ rowOffset: 0 });
       this.changeRow({ row: 0});
     },
@@ -285,12 +260,7 @@ export default {
 
       this.rowBound = true;
       this.scrollRow = maxSize;
-      this.scrolling = true;
-
-      const gridData = await this.grid.getGridPartWithDelay(ny, this.col, realSize, 500);
-
-      this.scrolling = false;
-      this.changeGridData({ gridData });
+      await this.loadNewPartGridData({ row: ny, col: this.col });
       this.changeRowOffset({ rowOffset: realSize - this.visibleRow });
       this.changeRow({ row: ny });
     },
@@ -370,10 +340,9 @@ export default {
 
       // update info from data driver
       this.scrolling = true;
-      const gridData = await this.grid.getGridPartWithDelay(this.row, this.col, realSize, 500);
+      await this.loadNewPartGridData({ row: this.row, col: this.col });
 
       this.scrolling = false;
-      this.changeGridData({ gridData });
       this.clearTempData();
       this.changed = 0;
     },
@@ -407,8 +376,7 @@ export default {
       if (rowChanged) newRow = parsedRow;
       if (colChanged) newCol = parsedCol;
 
-      const gridData = await this.grid.getGridPartWithDelay(newRow, newCol, realSize, 500);
-      this.changeGridData({ gridData });
+      await this.loadNewPartGridData({ row: newRow, col: newCol });
       this.scrolling = false;
 
       this.changeRow({ row: newRow });
@@ -429,11 +397,14 @@ export default {
       changeCol:             Mutations.CHANGE_COL,
       changeRowOffset:       Mutations.CHANGE_ROW_OFFSET,
       changeColOffset:       Mutations.CHANGE_COL_OFFSET,
-      changeGridData:        Mutations.CHANGE_GRID_DATA,
       clearTempData:         Mutations.CLEAR_TEMP_DATA,
       changeNumberTempData:  Mutations.CHANGE_NUMBER_TEMP_DATA,
       changeEnabledTempData: Mutations.CHANGE_ENABLED_TEMP_DATA,
     }),
+
+    ...mapActions([
+      'loadNewPartGridData',
+    ])
   },
 
   watch: {
@@ -461,9 +432,9 @@ export default {
             : (newValue + this.col) - (ndx)
         );
 
-        const gridData = await this.grid.getGridPartWithDelay(this.row, col, realSize, 500);
+        const loaded = await this.loadNewPartGridData({ row: this.row, col });
 
-        if (gridData) {
+        if (loaded) {
           const colOffset = isMinBound
             ? (newValue + this.col) : (
               isMaxBound
@@ -473,7 +444,6 @@ export default {
 
           this.changeColOffset({ colOffset });
           this.changeCol({ col });
-          this.changeGridData({ gridData });
         }
       }
     }, 500),
@@ -503,9 +473,9 @@ export default {
             : (newValue + this.row) - (ndy)
         );
 
-        const gridData = await this.grid.getGridPartWithDelay(row, this.col, realSize, 500);
+        const loaded = await this.loadNewPartGridData({ row, col: this.col });
 
-        if (gridData) {
+        if (loaded) {
           const rowOffset = isMinBound
             ? (newValue + this.row) : (
               isMaxBound
@@ -515,7 +485,6 @@ export default {
 
           this.changeRowOffset({ rowOffset });
           this.changeRow({ row });
-          this.changeGridData({ gridData });
         }
       }
     }, 500),

@@ -1,5 +1,6 @@
 {
     "GAP": 10,
     "REAL_SIZE": 100,
-    "GRID_SIZE": 40000
+    "GRID_SIZE": 40000,
+    "LOAD_DELAY": 500
 }
